@@ -26,6 +26,7 @@ OUTPUT_PATH = Path("cse_476_final_project_answers.json")
 API_KEY="cse476"
 API_BASE="http://10.4.58.53:41701/v1"
 MODEL="bens_model"   
+
 pre_analogical_sys_prompt = """You are a careful assistant. 
                                 First think through the problem step by step before answering. 
                                 Provide detail explanation of every step before providing the final answer."""
@@ -37,12 +38,27 @@ analogical_prompt_template = """Follow this steps to answer the question:
                                 - Python Executioner: useful for when you need to perform calculations, data analysis, or any other task that requires executing Python code. Use this tool by saying "Python Executioner: <your python code>" iexample: Python Executioner: print(2+2)
                                 PROVIDE YOU FINAL ANWSER WITH EVERY STEP OF YOUR REASONING.
                                 """ 
-self_refine_sys_prompt =     """You are a Meticolous grader.Your goal is to verify the correctness of answers to a given question."""
+self_refine_sys_prompt =    """You are a meticulous grader.Your goal is to verify the correctness of answers to a given question."""
 self_refine_prompt_temp =  """
                             You are a Quality Assurance Auditor. 
                             1. Check the proposed answer for logical flaws or missed constraints.
                             2. If the answer is correct, repeat it inside <answer> tags.
-                            3. If it is wrong, fix it and output the new answer inside <answer> tags."""
+                            3. If it is wrong, fix it and output the new answer inside <answer> tags.
+                            Format the answer according to these rules;
+                            Your ONLY job is to take a raw answer and format it strictly according to these rules:
+                            1. Boolean/Binary: If the question asks for Yes/No, True/False, or simple verification, output strictly "True" or "False". 
+                            - Example: "No, they don't" -> "False"
+                            - Example: "Yes, absolutely" -> "True"
+
+                            2. Multiple Choice: Output ONLY the exact text of the correct option. Do not include "Option 1" or labels.
+
+                            3. Math: Output the number or LaTeX expression ONLY. 
+                                - Do NOT use '$' signs. (e.g., "$\sqrt{5}$" -> "\sqrt{5}")
+                                - Do NOT write units unless specified. (e.g., "$99" -> "99")
+
+                            4. Remove all conversational filler ("The answer is...", "computed to be...").
+                            5. If given code snippet return the completed code solution.
+                            """
 
 def call_model_chat_completions(prompt: str,
                                 system: str = "give me only the final answer no explanation.",
@@ -97,6 +113,7 @@ def load_questions(path: Path) -> List[Dict[str, Any]]:
 
 #clearning up the models answer
 def clean_ans(res):
+   if not isinstance(res, str): return ""
    match = re.search(r'<answer>(.*?)</answer>', res, re.DOTALL | re.IGNORECASE)
    if match:
         return match.group(1).strip()
@@ -141,7 +158,7 @@ def build_answers(questions: List[Dict[str, Any]]) -> List[Dict[str, str]]:
         
         for _ in range(7):
             #allows for the model to use tools
-            result = call_model_chat_completions(prompt=analogical_prompt, system=pre_analogical_sys_prompt, model=MODEL, temperature=0.0, timeout=60, max_tokens=2060  , message=messages) 
+            result = call_model_chat_completions(prompt=analogical_prompt, system=pre_analogical_sys_prompt, model=MODEL, temperature=0.0, timeout=60, max_tokens=5060  , message=messages) 
             model_ans = result['text'] or  "" #get the answer or return an empty string
             tool = re.search(r"(Google Search:|Python Executioner:)(.*)", model_ans)
             
@@ -172,12 +189,12 @@ def build_answers(questions: List[Dict[str, Any]]) -> List[Dict[str, str]]:
             ]
         
         
-        result = call_model_chat_completions(prompt=self_refine_prompt, model=MODEL, temperature=0.0, max_tokens=2060 , timeout=60, message=messages)
+        result = call_model_chat_completions(prompt=self_refine_prompt, model=MODEL, temperature=0.0, max_tokens=5060 , timeout=60, message=messages)
         
-        print("Model Answer:", clean_ans(result['text']))
+        cleaned_results = clean_ans(result['text'])
+        print('model output', cleaned_results)
 
-        placeholder_answer = f"Placeholder answer for question {idx}"
-        answers.append({"output": placeholder_answer})
+        answers.append({"output": cleaned_results})
     return answers
 
 
