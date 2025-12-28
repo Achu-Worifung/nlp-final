@@ -15,9 +15,9 @@ CSE 476 final project. The repo includes a tutorial notebook for experimentation
 
 ## Configuration
 The code defaults to the provided classroom endpoint and model:
-- `API_BASE="http://10.4.58.53:41701/v1"`
-- `MODEL="bens_model"`
-- `API_KEY="cse476"`
+- `API_BASE="BASE-ADDRESS"`
+- `MODEL="MODEL-NAME"`
+- `API_KEY="API-KEY"`
 
 ## Generating answers for submission
 Run the CLI to produce `cse_476_final_project_answers.json` in the required format:
